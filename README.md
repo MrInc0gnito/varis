@@ -1,2 +1,2 @@
 # varis
-Free, clean and easy script hosting
+FREE SCRIPT SHARING, THAT YOU CONTROL
