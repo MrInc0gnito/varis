@@ -1,0 +1,145 @@
+local v = {}
+
+local TweenService = game:GetService("TweenService")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+-- Helper to convert hex to Color3
+local function HexToColor3(hex)
+    hex = hex:gsub("#","")
+    if #hex ~= 6 then return Color3.new(1,1,1) end
+    local r = tonumber(hex:sub(1,2),16)/255
+    local g = tonumber(hex:sub(3,4),16)/255
+    local b = tonumber(hex:sub(5,6),16)/255
+    return Color3.new(r,g,b)
+end
+
+-- Helper: Darken color by amount (0-1)
+local function DarkenColor(color, amount)
+    amount = math.clamp(amount, 0, 1)
+    local r = color.R * (1 - amount)
+    local g = color.G * (1 - amount)
+    local b = color.B * (1 - amount)
+    return Color3.new(r,g,b)
+end
+
+-- Map font name string to Enum.Font, fallback SourceSans
+local function GetFont(fontName)
+    if typeof(fontName) ~= "string" then return Enum.Font.SourceSans end
+    local font = Enum.Font[fontName]
+    return font or Enum.Font.SourceSans
+end
+
+function v.notify(params)
+    params = params or {}
+
+    local titleText = params.title or "Notification"
+    local subtitleText = params.subtitle or ""
+    local colHex = params.col or "#2c3e50"  -- Default dark blue-grey
+    local duration = tonumber(params.duration) or 5
+    local font = GetFont(params.font)
+
+    local bgColor = HexToColor3(colHex)
+    local barColor = DarkenColor(bgColor, 0.35)
+
+    -- Create ScreenGui
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.Name = "VarisNotification"
+    screenGui.ResetOnSpawn = false
+    screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+
+    -- Notification Frame
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(0, 320, 0, 100)
+    frame.Position = UDim2.new(1, -340, 1, -120) -- Bottom right corner
+    frame.BackgroundColor3 = bgColor
+    frame.BorderSizePixel = 0
+    frame.AnchorPoint = Vector2.new(0, 0)
+    frame.Parent = screenGui
+    frame.ClipsDescendants = true
+    frame.Name = "NotificationFrame"
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 12)
+    corner.Parent = frame
+
+    -- Title TextLabel
+    local titleLabel = Instance.new("TextLabel")
+    titleLabel.Size = UDim2.new(1, -40, 0, 40)
+    titleLabel.Position = UDim2.new(0, 20, 0, 10)
+    titleLabel.BackgroundTransparency = 1
+    titleLabel.Text = titleText
+    titleLabel.Font = font
+    titleLabel.TextSize = 24
+    titleLabel.TextColor3 = Color3.new(1,1,1)
+    titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+    titleLabel.TextYAlignment = Enum.TextYAlignment.Center
+    titleLabel.Parent = frame
+
+    -- Subtitle TextLabel (optional)
+    local subtitleLabel = Instance.new("TextLabel")
+    subtitleLabel.Size = UDim2.new(1, -40, 0, 30)
+    subtitleLabel.Position = UDim2.new(0, 20, 0, 50)
+    subtitleLabel.BackgroundTransparency = 1
+    subtitleLabel.Text = subtitleText
+    subtitleLabel.Font = font
+    subtitleLabel.TextSize = 18
+    subtitleLabel.TextColor3 = Color3.new(1,1,1)
+    subtitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+    subtitleLabel.TextYAlignment = Enum.TextYAlignment.Top
+    subtitleLabel.Visible = subtitleText ~= ""
+    subtitleLabel.Parent = frame
+
+    -- Close Button (fixed)
+    local closeBtn = Instance.new("TextButton")
+    closeBtn.Size = UDim2.new(0, 30, 0, 30)
+    closeBtn.Position = UDim2.new(1, -40, 0, 10)
+    closeBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+    closeBtn.Text = "X"
+    closeBtn.TextColor3 = Color3.new(1,1,1)
+    closeBtn.Font = Enum.Font.SourceSansBold
+    closeBtn.TextSize = 20
+    closeBtn.AutoButtonColor = true
+    closeBtn.Parent = frame
+
+    local closeCorner = Instance.new("UICorner")
+    closeCorner.CornerRadius = UDim.new(0, 6)
+    closeCorner.Parent = closeBtn
+
+    local barHeight = 6
+    -- Progress Bar Frame
+    local progressBarBg = Instance.new("Frame")
+    progressBarBg.Size = UDim2.new(1, 0, 0, barHeight)
+    progressBarBg.Position = UDim2.new(0, 0, 1, -barHeight)
+    progressBarBg.BackgroundColor3 = barColor
+    progressBarBg.BorderSizePixel = 0
+    progressBarBg.Parent = frame
+
+    -- Progress Bar Fill
+    local progressBarFill = Instance.new("Frame")
+    progressBarFill.Size = UDim2.new(1, 0, 1, 0)
+    progressBarFill.Position = UDim2.new(0, 0, 0, 0)
+    progressBarFill.BackgroundColor3 = barColor
+    progressBarFill.BorderSizePixel = 0
+    progressBarFill.Parent = progressBarBg
+
+    -- Tween progress bar shrinking over duration
+    local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Linear)
+    local tween = TweenService:Create(progressBarFill, tweenInfo, {Size = UDim2.new(0, 0, 1, 0)})
+    tween:Play()
+
+    local function cleanup()
+        tween:Cancel()
+        screenGui:Destroy()
+    end
+
+    -- Close on button click
+    closeBtn.MouseButton1Click:Connect(function()
+        cleanup()
+    end)
+
+    -- Auto close after duration
+    delay(duration, cleanup)
+end
+
+return v
