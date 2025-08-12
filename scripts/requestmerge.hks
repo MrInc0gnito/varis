@@ -1,3 +1,6 @@
+-- requestmerge.hks
+-- Validates key & merge, fetches and returns the linked merge script
+
 local function fetch(url)
     local success, response = pcall(function()
         return game:HttpGet(url)
@@ -11,6 +14,11 @@ end
 local KEY_URL = "https://raw.githubusercontent.com/MrInc0gnito/varis/refs/heads/main/scripts/key.hsk"
 local MERGE_LIST_URL = "https://raw.githubusercontent.com/MrInc0gnito/varis/refs/heads/main/scripts/requestsignal.hks"
 
+-- Trim whitespace helper
+local function trim(s)
+    return s:match("^%s*(.-)%s*$")
+end
+
 return function(key, merge)
     print("[Backend] Validating key:", key)
     local valid_key_data, key_err = fetch(KEY_URL)
@@ -18,7 +26,7 @@ return function(key, merge)
         print("[Backend] Key fetch error:", key_err)
         return false, key_err
     end
-    valid_key_data = valid_key_data:gsub("%s+$", "")
+    valid_key_data = trim(valid_key_data)
     print("[Backend] Key data fetched:", valid_key_data)
 
     if key ~= valid_key_data then
