@@ -5,12 +5,10 @@ local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 
 local MAX_NOTIFICATIONS = 4
-local notificationSpacing = 10 -- pixels between notifications
+local notificationSpacing = 10 -- px between notifs
 
--- Track active notifications
 local activeNotifications = {}
 
--- Helper: Hex to Color3
 local function HexToColor3(hex)
     hex = hex:gsub("#","")
     if #hex ~= 6 then return Color3.new(1,1,1) end
@@ -20,22 +18,23 @@ local function HexToColor3(hex)
     return Color3.new(r,g,b)
 end
 
--- Helper: Darken color
 local function DarkenColor(color, amount)
     amount = math.clamp(amount, 0, 1)
     return Color3.new(color.R * (1 - amount), color.G * (1 - amount), color.B * (1 - amount))
 end
 
--- Helper: Get font from string
 local function GetFont(fontName)
     if typeof(fontName) ~= "string" then return Enum.Font.SourceSans end
     local font = Enum.Font[fontName]
     return font or Enum.Font.SourceSans
 end
 
+-- Reposition notifications stacked upwards,
+-- first notification at bottom-right, others above it.
 local function repositionNotifications()
     local totalHeight = 0
-    for i = #activeNotifications, 1, -1 do
+    -- Iterate oldest first, position bottom to top
+    for i = 1, #activeNotifications do
         local notif = activeNotifications[i]
         if notif and notif.Frame and notif.Frame.Parent then
             local pos = UDim2.new(1, -20, 1, -20 - totalHeight)
@@ -69,7 +68,7 @@ local function createNotification(params)
     local frame = Instance.new("Frame")
     frame.Size = UDim2.new(0, 320, 0, 100)
     frame.AnchorPoint = Vector2.new(1, 1)
-    frame.Position = UDim2.new(1, -20, 1, -20) -- Start bottom-right, will reposition
+    frame.Position = UDim2.new(1, -20, 1, -20) -- Will be repositioned after
     frame.BackgroundColor3 = bgColor
     frame.BorderSizePixel = 0
     frame.Parent = screenGui
@@ -135,19 +134,19 @@ local function createNotification(params)
     progressBarFill.BorderSizePixel = 0
     progressBarFill.Parent = progressBarBg
 
-    -- Tween progress bar shrink over duration
+    -- Tween progress bar shrinking LEFT to RIGHT (width from 1 to 0)
     local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Linear)
     local tween = TweenService:Create(progressBarFill, tweenInfo, {Size = UDim2.new(0, 0, 1, 0)})
     tween:Play()
 
     local function cleanup()
-        -- Slide out right animation
+        -- Slide right animation offscreen
         local tweenOutInfo = TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
         local tweenOut = TweenService:Create(frame, tweenOutInfo, {Position = UDim2.new(1, 400, frame.Position.Y.Scale, frame.Position.Y.Offset)})
         tweenOut:Play()
         tweenOut.Completed:Wait()
 
-        -- Destroy and remove from activeNotifications
+        -- Destroy GUI and remove from list
         screenGui:Destroy()
         for i, notif in ipairs(activeNotifications) do
             if notif.Frame == frame then
@@ -159,8 +158,6 @@ local function createNotification(params)
     end
 
     closeBtn.MouseButton1Click:Connect(cleanup)
-
-    -- Auto cleanup after duration + small delay for exit animation
     delay(duration, cleanup)
 
     return {
@@ -169,23 +166,18 @@ local function createNotification(params)
     }
 end
 
--- Rate limit warning helper
 local function createRateLimitNotification()
-    -- Don't spam the warning if it's already shown
     for _, notif in ipairs(activeNotifications) do
-        if notif.isRateLimitWarning then
-            return
-        end
+        if notif.isRateLimitWarning then return end
     end
 
     local rateLimitNotif = createNotification({
         title = "Varis Notifications",
         subtitle = "Your notifications are being ratelimited, do not spam notifications!",
-        col = "#e67e22", -- orange
+        col = "#e74c3c", -- red
         duration = 5,
         font = "GothamBold",
     })
-
     rateLimitNotif.isRateLimitWarning = true
     table.insert(activeNotifications, rateLimitNotif)
     repositionNotifications()
