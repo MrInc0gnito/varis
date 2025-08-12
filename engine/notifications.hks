@@ -1,8 +1,4 @@
--- Varis Notification Backend
--- Supports customizable title, subtitle, color, duration, font
--- Max 4 notifications stacked, 5th triggers ratelimit warning
--- Exit animation slides notifications right off-screen
--- Depletion bar animates from full width to zero in the duration time
+-- Varis Notification Backend (Full Latest Stable Release)
 
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
@@ -36,7 +32,6 @@ local function createNotification(params)
     notifFrame.AnchorPoint = Vector2.new(1,1)
     notifFrame.Position = UDim2.new(1, -20, 1, -20)
     notifFrame.BackgroundColor3 = col
-    notifFrame.BackgroundTransparency = 0
     notifFrame.BorderSizePixel = 0
     notifFrame.Parent = PlayerGui
 
