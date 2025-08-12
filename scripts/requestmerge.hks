@@ -1,71 +1,61 @@
 -- requestmerge.hks
--- Validates key & merge, fetches and returns the linked merge script
+-- Backend function: validates key and merge, returns script source or error
 
 local function fetch(url)
-    local success, response = pcall(function()
+    local ok, result = pcall(function()
         return game:HttpGet(url)
     end)
-    if not success then
-        return nil, "Failed to fetch: " .. tostring(response)
+    if not ok then
+        return nil, "Failed to fetch: "..tostring(result)
     end
-    return response
+    return result
+end
+
+local function trim(s)
+    return s:match("^%s*(.-)%s*$")
 end
 
 local KEY_URL = "https://raw.githubusercontent.com/MrInc0gnito/varis/refs/heads/main/scripts/key.hsk"
 local MERGE_LIST_URL = "https://raw.githubusercontent.com/MrInc0gnito/varis/refs/heads/main/scripts/requestsignal.hks"
 
--- Trim whitespace helper
-local function trim(s)
-    return s:match("^%s*(.-)%s*$")
-end
-
 return function(key, merge)
-    print("[Backend] Validating key:", key)
-    local valid_key_data, key_err = fetch(KEY_URL)
-    if not valid_key_data then
-        print("[Backend] Key fetch error:", key_err)
-        return false, key_err
+    -- Fetch and validate key
+    local valid_key, err = fetch(KEY_URL)
+    if not valid_key then
+        return false, err
     end
-    valid_key_data = trim(valid_key_data)
-    print("[Backend] Key data fetched:", valid_key_data)
+    valid_key = trim(valid_key)
 
-    if key ~= valid_key_data then
-        print("[Backend] Key mismatch!")
+    if key ~= valid_key then
         return false, "Invalid key"
     end
 
-    print("[Backend] Key valid. Fetching merge list...")
-    local merge_list_data, merge_err = fetch(MERGE_LIST_URL)
-    if not merge_list_data then
-        print("[Backend] Merge list fetch error:", merge_err)
-        return false, merge_err
+    -- Fetch merge list
+    local merge_list, err = fetch(MERGE_LIST_URL)
+    if not merge_list then
+        return false, err
     end
 
-    print("[Backend] Merge list fetched. Searching for merge:", merge)
+    -- Find matching merge entry
     local found_url
-    for line in merge_list_data:gmatch("[^\r\n]+") do
-        print("[Backend] Checking line:", line)
+    for line in merge_list:gmatch("[^\r\n]+") do
         local id, url, compat = line:match("([^|]+)|([^|]+)|([^|]+)")
-        print("[Backend] Parsed:", id, url, compat)
         if id == merge then
             found_url = url
-            print("[Backend] Found merge URL:", found_url)
             break
         end
     end
 
     if not found_url then
-        print("[Backend] Merge not found in list!")
         return false, "Merge not found"
     end
 
-    print("[Backend] Fetching script from:", found_url)
-    local script_data, script_err = fetch(found_url)
-    if not script_data then
-        print("[Backend] Script fetch error:", script_err)
-        return false, script_err
+    -- Fetch the merge script source
+    local script_source, err = fetch(found_url)
+    if not script_source then
+        return false, err
     end
 
-    print("[Backend] Script fetched, length:", #script_data)
-    return true, script_data
+    -- Return success and the raw script source as a string
+    return true, script_source
 end
