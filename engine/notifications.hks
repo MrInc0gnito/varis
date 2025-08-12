@@ -4,7 +4,13 @@ local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 
--- Helper to convert hex to Color3
+local MAX_NOTIFICATIONS = 4
+local notificationSpacing = 10 -- pixels between notifications
+
+-- Track active notifications
+local activeNotifications = {}
+
+-- Helper: Hex to Color3
 local function HexToColor3(hex)
     hex = hex:gsub("#","")
     if #hex ~= 6 then return Color3.new(1,1,1) end
@@ -14,47 +20,58 @@ local function HexToColor3(hex)
     return Color3.new(r,g,b)
 end
 
--- Helper: Darken color by amount (0-1)
+-- Helper: Darken color
 local function DarkenColor(color, amount)
     amount = math.clamp(amount, 0, 1)
-    local r = color.R * (1 - amount)
-    local g = color.G * (1 - amount)
-    local b = color.B * (1 - amount)
-    return Color3.new(r,g,b)
+    return Color3.new(color.R * (1 - amount), color.G * (1 - amount), color.B * (1 - amount))
 end
 
--- Map font name string to Enum.Font, fallback SourceSans
+-- Helper: Get font from string
 local function GetFont(fontName)
     if typeof(fontName) ~= "string" then return Enum.Font.SourceSans end
     local font = Enum.Font[fontName]
     return font or Enum.Font.SourceSans
 end
 
-function v.notify(params)
+local function repositionNotifications()
+    local totalHeight = 0
+    for i = #activeNotifications, 1, -1 do
+        local notif = activeNotifications[i]
+        if notif and notif.Frame and notif.Frame.Parent then
+            local pos = UDim2.new(1, -20, 1, -20 - totalHeight)
+            notif.TargetPosition = pos
+            totalHeight = totalHeight + notif.Frame.AbsoluteSize.Y + notificationSpacing
+            local tween = TweenService:Create(notif.Frame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Position = pos})
+            tween:Play()
+        else
+            table.remove(activeNotifications, i)
+        end
+    end
+end
+
+local function createNotification(params)
     params = params or {}
 
     local titleText = params.title or "Notification"
     local subtitleText = params.subtitle or ""
-    local colHex = params.col or "#2c3e50"  -- Default dark blue-grey
+    local colHex = params.col or "#2c3e50"
     local duration = tonumber(params.duration) or 5
     local font = GetFont(params.font)
 
     local bgColor = HexToColor3(colHex)
     local barColor = DarkenColor(bgColor, 0.35)
 
-    -- Create ScreenGui
     local screenGui = Instance.new("ScreenGui")
     screenGui.Name = "VarisNotification"
     screenGui.ResetOnSpawn = false
     screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
-    -- Notification Frame
     local frame = Instance.new("Frame")
     frame.Size = UDim2.new(0, 320, 0, 100)
-    frame.Position = UDim2.new(1, -340, 1, -120) -- Bottom right corner
+    frame.AnchorPoint = Vector2.new(1, 1)
+    frame.Position = UDim2.new(1, -20, 1, -20) -- Start bottom-right, will reposition
     frame.BackgroundColor3 = bgColor
     frame.BorderSizePixel = 0
-    frame.AnchorPoint = Vector2.new(0, 0)
     frame.Parent = screenGui
     frame.ClipsDescendants = true
     frame.Name = "NotificationFrame"
@@ -63,7 +80,6 @@ function v.notify(params)
     corner.CornerRadius = UDim.new(0, 12)
     corner.Parent = frame
 
-    -- Title TextLabel
     local titleLabel = Instance.new("TextLabel")
     titleLabel.Size = UDim2.new(1, -40, 0, 40)
     titleLabel.Position = UDim2.new(0, 20, 0, 10)
@@ -71,12 +87,11 @@ function v.notify(params)
     titleLabel.Text = titleText
     titleLabel.Font = font
     titleLabel.TextSize = 24
-    titleLabel.TextColor3 = Color3.new(1,1,1)
+    titleLabel.TextColor3 = Color3.new(1, 1, 1)
     titleLabel.TextXAlignment = Enum.TextXAlignment.Left
     titleLabel.TextYAlignment = Enum.TextYAlignment.Center
     titleLabel.Parent = frame
 
-    -- Subtitle TextLabel (optional)
     local subtitleLabel = Instance.new("TextLabel")
     subtitleLabel.Size = UDim2.new(1, -40, 0, 30)
     subtitleLabel.Position = UDim2.new(0, 20, 0, 50)
@@ -84,19 +99,18 @@ function v.notify(params)
     subtitleLabel.Text = subtitleText
     subtitleLabel.Font = font
     subtitleLabel.TextSize = 18
-    subtitleLabel.TextColor3 = Color3.new(1,1,1)
+    subtitleLabel.TextColor3 = Color3.new(1, 1, 1)
     subtitleLabel.TextXAlignment = Enum.TextXAlignment.Left
     subtitleLabel.TextYAlignment = Enum.TextYAlignment.Top
     subtitleLabel.Visible = subtitleText ~= ""
     subtitleLabel.Parent = frame
 
-    -- Close Button (fixed)
     local closeBtn = Instance.new("TextButton")
     closeBtn.Size = UDim2.new(0, 30, 0, 30)
     closeBtn.Position = UDim2.new(1, -40, 0, 10)
     closeBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
     closeBtn.Text = "X"
-    closeBtn.TextColor3 = Color3.new(1,1,1)
+    closeBtn.TextColor3 = Color3.new(1, 1, 1)
     closeBtn.Font = Enum.Font.SourceSansBold
     closeBtn.TextSize = 20
     closeBtn.AutoButtonColor = true
@@ -107,7 +121,6 @@ function v.notify(params)
     closeCorner.Parent = closeBtn
 
     local barHeight = 6
-    -- Progress Bar Frame
     local progressBarBg = Instance.new("Frame")
     progressBarBg.Size = UDim2.new(1, 0, 0, barHeight)
     progressBarBg.Position = UDim2.new(0, 0, 1, -barHeight)
@@ -115,7 +128,6 @@ function v.notify(params)
     progressBarBg.BorderSizePixel = 0
     progressBarBg.Parent = frame
 
-    -- Progress Bar Fill
     local progressBarFill = Instance.new("Frame")
     progressBarFill.Size = UDim2.new(1, 0, 1, 0)
     progressBarFill.Position = UDim2.new(0, 0, 0, 0)
@@ -123,23 +135,71 @@ function v.notify(params)
     progressBarFill.BorderSizePixel = 0
     progressBarFill.Parent = progressBarBg
 
-    -- Tween progress bar shrinking over duration
+    -- Tween progress bar shrink over duration
     local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Linear)
     local tween = TweenService:Create(progressBarFill, tweenInfo, {Size = UDim2.new(0, 0, 1, 0)})
     tween:Play()
 
     local function cleanup()
-        tween:Cancel()
+        -- Slide out right animation
+        local tweenOutInfo = TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+        local tweenOut = TweenService:Create(frame, tweenOutInfo, {Position = UDim2.new(1, 400, frame.Position.Y.Scale, frame.Position.Y.Offset)})
+        tweenOut:Play()
+        tweenOut.Completed:Wait()
+
+        -- Destroy and remove from activeNotifications
         screenGui:Destroy()
+        for i, notif in ipairs(activeNotifications) do
+            if notif.Frame == frame then
+                table.remove(activeNotifications, i)
+                break
+            end
+        end
+        repositionNotifications()
     end
 
-    -- Close on button click
-    closeBtn.MouseButton1Click:Connect(function()
-        cleanup()
-    end)
+    closeBtn.MouseButton1Click:Connect(cleanup)
 
-    -- Auto close after duration
+    -- Auto cleanup after duration + small delay for exit animation
     delay(duration, cleanup)
+
+    return {
+        Frame = frame,
+        TargetPosition = frame.Position,
+    }
+end
+
+-- Rate limit warning helper
+local function createRateLimitNotification()
+    -- Don't spam the warning if it's already shown
+    for _, notif in ipairs(activeNotifications) do
+        if notif.isRateLimitWarning then
+            return
+        end
+    end
+
+    local rateLimitNotif = createNotification({
+        title = "Varis Notifications",
+        subtitle = "Your notifications are being ratelimited, do not spam notifications!",
+        col = "#e67e22", -- orange
+        duration = 5,
+        font = "GothamBold",
+    })
+
+    rateLimitNotif.isRateLimitWarning = true
+    table.insert(activeNotifications, rateLimitNotif)
+    repositionNotifications()
+end
+
+function v.notify(params)
+    if #activeNotifications >= MAX_NOTIFICATIONS then
+        createRateLimitNotification()
+        return
+    end
+
+    local notif = createNotification(params)
+    table.insert(activeNotifications, notif)
+    repositionNotifications()
 end
 
 return v
