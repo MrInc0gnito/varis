@@ -1,12 +1,10 @@
 -- requestmerge.hks
--- Backend function: validates key and merge, returns script source or error
-
 local function fetch(url)
     local ok, result = pcall(function()
         return game:HttpGet(url)
     end)
     if not ok then
-        return nil, "Failed to fetch: "..tostring(result)
+        return nil, "Failed to fetch URL: " .. tostring(result)
     end
     return result
 end
@@ -19,7 +17,7 @@ local KEY_URL = "https://raw.githubusercontent.com/MrInc0gnito/varis/refs/heads/
 local MERGE_LIST_URL = "https://raw.githubusercontent.com/MrInc0gnito/varis/refs/heads/main/scripts/requestsignal.hks"
 
 return function(key, merge)
-    -- Fetch and validate key
+    -- Validate key
     local valid_key, err = fetch(KEY_URL)
     if not valid_key then
         return false, err
@@ -36,7 +34,7 @@ return function(key, merge)
         return false, err
     end
 
-    -- Find matching merge entry
+    -- Find merge URL for requested merge
     local found_url
     for line in merge_list:gmatch("[^\r\n]+") do
         local id, url, compat = line:match("([^|]+)|([^|]+)|([^|]+)")
@@ -50,12 +48,11 @@ return function(key, merge)
         return false, "Merge not found"
     end
 
-    -- Fetch the merge script source
+    -- Fetch merge script source
     local script_source, err = fetch(found_url)
     if not script_source then
         return false, err
     end
 
-    -- Return success and the raw script source as a string
     return true, script_source
 end
