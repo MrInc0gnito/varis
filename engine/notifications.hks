@@ -29,11 +29,8 @@ local function GetFont(fontName)
     return font or Enum.Font.SourceSans
 end
 
--- Reposition notifications stacked upwards,
--- first notification at bottom-right, others above it.
 local function repositionNotifications()
     local totalHeight = 0
-    -- Iterate oldest first, position bottom to top
     for i = 1, #activeNotifications do
         local notif = activeNotifications[i]
         if notif and notif.Frame and notif.Frame.Parent then
@@ -85,10 +82,11 @@ local function createNotification(params)
     titleLabel.BackgroundTransparency = 1
     titleLabel.Text = titleText
     titleLabel.Font = font
-    titleLabel.TextSize = 24
+    titleLabel.TextSize = 18 -- smaller font size
     titleLabel.TextColor3 = Color3.new(1, 1, 1)
     titleLabel.TextXAlignment = Enum.TextXAlignment.Left
     titleLabel.TextYAlignment = Enum.TextYAlignment.Center
+    titleLabel.TextWrapped = true -- enable word wrap
     titleLabel.Parent = frame
 
     local subtitleLabel = Instance.new("TextLabel")
@@ -97,10 +95,11 @@ local function createNotification(params)
     subtitleLabel.BackgroundTransparency = 1
     subtitleLabel.Text = subtitleText
     subtitleLabel.Font = font
-    subtitleLabel.TextSize = 18
+    subtitleLabel.TextSize = 14 -- smaller font size
     subtitleLabel.TextColor3 = Color3.new(1, 1, 1)
     subtitleLabel.TextXAlignment = Enum.TextXAlignment.Left
     subtitleLabel.TextYAlignment = Enum.TextYAlignment.Top
+    subtitleLabel.TextWrapped = true -- enable word wrap
     subtitleLabel.Visible = subtitleText ~= ""
     subtitleLabel.Parent = frame
 
@@ -140,13 +139,11 @@ local function createNotification(params)
     tween:Play()
 
     local function cleanup()
-        -- Slide right animation offscreen
         local tweenOutInfo = TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
         local tweenOut = TweenService:Create(frame, tweenOutInfo, {Position = UDim2.new(1, 400, frame.Position.Y.Scale, frame.Position.Y.Offset)})
         tweenOut:Play()
         tweenOut.Completed:Wait()
 
-        -- Destroy GUI and remove from list
         screenGui:Destroy()
         for i, notif in ipairs(activeNotifications) do
             if notif.Frame == frame then
