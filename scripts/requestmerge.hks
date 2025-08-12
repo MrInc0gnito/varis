@@ -1,71 +1,58 @@
-local HttpService = game:GetService("HttpService")
+-- requestmerge.hks
+-- Backend script for validating key & merge, then fetching the linked script.
 
--- Variables you set beforehand:
-local key = "YOUR_KEY_HERE"
-local merge = "HUNDA" -- must match case exactly
-
--- Remote URLs
-local keyURL = "https://raw.githubusercontent.com/MrInc0gnito/varis/refs/heads/main/scripts/key.hsk"
-local mergeURL = "https://raw.githubusercontent.com/MrInc0gnito/varis/refs/heads/main/scripts/requestsignal.hks"
-
--- Function to fetch plain text from URL
-local function fetchText(url)
-	local success, result = pcall(function()
-		return HttpService:GetAsync(url)
-	end)
-	if success then
-		return result
-	else
-		warn("Failed to fetch from " .. url .. ": " .. tostring(result))
-		return nil
-	end
+-- Utility function to fetch data from URL
+local function fetch(url)
+    local success, response = pcall(function()
+        return game:HttpGet(url)
+    end)
+    if not success then
+        return nil, "Failed to fetch: " .. tostring(response)
+    end
+    return response
 end
 
--- 1. Validate key
-local serverKey = fetchText(keyURL)
-if not serverKey then
-	error("Could not fetch key from server.")
+-- URLS
+local KEY_URL = "https://raw.githubusercontent.com/MrInc0gnito/varis/refs/heads/main/scripts/key.hsk"
+local MERGE_LIST_URL = "https://raw.githubusercontent.com/MrInc0gnito/varis/refs/heads/main/scripts/requestsignal.hks"
+
+return function(key, merge)
+    -- Validate key
+    local valid_key_data, key_err = fetch(KEY_URL)
+    if not valid_key_data then
+        return false, key_err
+    end
+    valid_key_data = valid_key_data:gsub("%s+$", "") -- trim spaces/newlines
+
+    if key ~= valid_key_data then
+        return false, "Invalid key"
+    end
+
+    -- Get merge list
+    local merge_list_data, merge_err = fetch(MERGE_LIST_URL)
+    if not merge_list_data then
+        return false, merge_err
+    end
+
+    -- Search for matching merge
+    local found_url
+    for line in merge_list_data:gmatch("[^\r\n]+") do
+        local id, url, compat = line:match("([^|]+)|([^|]+)|([^|]+)")
+        if id == merge then
+            found_url = url
+            break
+        end
+    end
+
+    if not found_url then
+        return false, "Merge not found"
+    end
+
+    -- Fetch the actual script
+    local script_data, script_err = fetch(found_url)
+    if not script_data then
+        return false, script_err
+    end
+
+    return true, script_data
 end
-
-serverKey = serverKey:gsub("%s+", "") -- strip whitespace/newlines
-if key ~= serverKey then
-	error("Invalid key provided.")
-end
-
-print("[Key] Validation successful.")
-
--- 2. Fetch merge list
-local mergeList = fetchText(mergeURL)
-if not mergeList then
-	error("Could not fetch merge list from server.")
-end
-
--- 3. Parse merge list
-local foundURL
-for line in string.gmatch(mergeList, "[^\r\n]+") do
-	local parts = {}
-	for part in string.gmatch(line, "[^|]+") do
-		table.insert(parts, part)
-	end
-	if parts[1] == merge then
-		foundURL = parts[2]
-		break
-	end
-end
-
-if not foundURL then
-	error("Merge '" .. merge .. "' not found in list.")
-end
-
-print("[Merge] Found script URL:", foundURL)
-
--- 4. Fetch and run script (optional)
-local scriptCode = fetchText(foundURL)
-if not scriptCode then
-	error("Failed to fetch script for merge '" .. merge .. "'.")
-end
-
-print("[Merge] Script fetched successfully.")
-
--- Optional execution in Roblox Studio:
--- loadstring(scriptCode)() -- Uncomment only if you know what the script does
