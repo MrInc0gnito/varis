@@ -31,7 +31,9 @@ end
 
 local function repositionNotifications()
     local totalHeight = 0
-    for i = 1, #activeNotifications do
+    -- New: position notifications bottom to top, stacking above previous
+    -- We position last notification at bottom, previous ones above it
+    for i = #activeNotifications, 1, -1 do
         local notif = activeNotifications[i]
         if notif and notif.Frame and notif.Frame.Parent then
             local pos = UDim2.new(1, -20, 1, -20 - totalHeight)
@@ -88,6 +90,7 @@ local function createNotification(params)
     titleLabel.TextYAlignment = Enum.TextYAlignment.Center
     titleLabel.TextWrapped = true
     titleLabel.RichText = true
+    titleLabel.AutomaticSize = Enum.AutomaticSize.Y
     titleLabel.Parent = frame
 
     local subtitleLabel = Instance.new("TextLabel")
@@ -102,6 +105,7 @@ local function createNotification(params)
     subtitleLabel.TextYAlignment = Enum.TextYAlignment.Top
     subtitleLabel.TextWrapped = true
     subtitleLabel.RichText = true
+    subtitleLabel.AutomaticSize = Enum.AutomaticSize.Y
     subtitleLabel.Visible = subtitleText ~= ""
     subtitleLabel.Parent = frame
 
