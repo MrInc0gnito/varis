@@ -1,6 +1,5 @@
--- Varis Notification Backend (Full Latest Stable Release)
+-- Varis Notification Backend - FULL working version
 
-local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
 
@@ -11,12 +10,11 @@ local MAX_NOTIFS = 4
 local activeNotifs = {}
 
 local function hexToColor3(hex)
-    hex = hex:gsub("#","")
-    return Color3.fromRGB(
-        tonumber(hex:sub(1,2),16) or 255,
-        tonumber(hex:sub(3,4),16) or 255,
-        tonumber(hex:sub(5,6),16) or 255
-    )
+    hex = hex:gsub("#", "")
+    local r = tonumber(hex:sub(1, 2), 16) or 255
+    local g = tonumber(hex:sub(3, 4), 16) or 255
+    local b = tonumber(hex:sub(5, 6), 16) or 255
+    return Color3.fromRGB(r, g, b)
 end
 
 local function createNotification(params)
@@ -26,10 +24,9 @@ local function createNotification(params)
     local duration = params.duration or 5
     local font = params.font or Enum.Font.Gotham
 
-    -- Container frame
     local notifFrame = Instance.new("Frame")
     notifFrame.Size = UDim2.new(0, 300, 0, 80)
-    notifFrame.AnchorPoint = Vector2.new(1,1)
+    notifFrame.AnchorPoint = Vector2.new(1, 1)
     notifFrame.Position = UDim2.new(1, -20, 1, -20)
     notifFrame.BackgroundColor3 = col
     notifFrame.BorderSizePixel = 0
@@ -42,52 +39,52 @@ local function createNotification(params)
 
     -- Title label
     local titleLabel = Instance.new("TextLabel")
-    titleLabel.Size = UDim2.new(1, -20, 0, 25)
+    titleLabel.Size = UDim2.new(1, -40, 0, 25)
     titleLabel.Position = UDim2.new(0, 10, 0, 10)
     titleLabel.BackgroundTransparency = 1
-    titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    titleLabel.TextColor3 = Color3.new(1, 1, 1)
     titleLabel.Font = font
     titleLabel.TextSize = 18
     titleLabel.TextWrapped = true
-    titleLabel.TextYAlignment = Enum.TextYAlignment.Top
     titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+    titleLabel.TextYAlignment = Enum.TextYAlignment.Top
     titleLabel.Text = title
     titleLabel.Parent = notifFrame
 
     -- Subtitle label
     local subtitleLabel = Instance.new("TextLabel")
-    subtitleLabel.Size = UDim2.new(1, -20, 0, 35)
+    subtitleLabel.Size = UDim2.new(1, -40, 0, 40)
     subtitleLabel.Position = UDim2.new(0, 10, 0, 35)
     subtitleLabel.BackgroundTransparency = 1
     subtitleLabel.TextColor3 = Color3.fromRGB(230, 230, 230)
     subtitleLabel.Font = font
     subtitleLabel.TextSize = 14
     subtitleLabel.TextWrapped = true
-    subtitleLabel.TextYAlignment = Enum.TextYAlignment.Top
     subtitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+    subtitleLabel.TextYAlignment = Enum.TextYAlignment.Top
     subtitleLabel.Text = subtitle
     subtitleLabel.Parent = notifFrame
 
-    -- Close button (simple X)
+    -- Close button
     local closeBtn = Instance.new("TextButton")
     closeBtn.Size = UDim2.new(0, 24, 0, 24)
     closeBtn.Position = UDim2.new(1, -30, 0, 10)
     closeBtn.BackgroundTransparency = 1
     closeBtn.Font = Enum.Font.SourceSansBold
     closeBtn.TextSize = 24
-    closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    closeBtn.TextColor3 = Color3.new(1, 1, 1)
     closeBtn.Text = "×"
     closeBtn.Parent = notifFrame
 
-    -- Depletion bar (bottom)
+    -- Depletion bar background
     local barFrame = Instance.new("Frame")
     barFrame.Size = UDim2.new(1, 0, 0, 4)
     barFrame.Position = UDim2.new(0, 0, 1, -4)
-    barFrame.BackgroundColor3 = col:lerp(Color3.new(0,0,0), 0.3) -- darker shade
+    barFrame.BackgroundColor3 = col:lerp(Color3.new(0, 0, 0), 0.3)
     barFrame.BorderSizePixel = 0
     barFrame.Parent = notifFrame
 
-    -- The depletion bar that shrinks horizontally
+    -- Depletion bar
     local bar = Instance.new("Frame")
     bar.Size = UDim2.new(1, 0, 1, 0)
     bar.Position = UDim2.new(0, 0, 0, 0)
@@ -95,14 +92,12 @@ local function createNotification(params)
     bar.BorderSizePixel = 0
     bar.Parent = barFrame
 
-    -- Tween bar size from full to 0 width over 'duration' seconds
+    -- Tween bar shrinking left to right
     local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Linear)
     local tween = TweenService:Create(bar, tweenInfo, {Size = UDim2.new(0, 0, 1, 0)})
     tween:Play()
 
-    -- Function to cleanly remove notification with slide out animation
     local function closeNotification()
-        -- Slide right tween
         local slideTween = TweenService:Create(notifFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
             Position = notifFrame.Position + UDim2.new(0, 350, 0, 0)
         })
@@ -110,67 +105,57 @@ local function createNotification(params)
         slideTween.Completed:Wait()
         notifFrame:Destroy()
 
-        -- Remove from active list
-        for i, n in ipairs(activeNotifs) do
-            if n == notifFrame then
+        for i, v in ipairs(activeNotifs) do
+            if v == notifFrame then
                 table.remove(activeNotifs, i)
                 break
             end
         end
 
         -- Rearrange remaining notifications
-        for i, n in ipairs(activeNotifs) do
-            local targetPos = UDim2.new(1, -20, 1, -20 - (i-1)*90)
-            TweenService:Create(n, TweenInfo.new(0.3), {Position = targetPos}):Play()
+        for i, v in ipairs(activeNotifs) do
+            local newPos = UDim2.new(1, -20, 1, -20 - (i-1)*90)
+            TweenService:Create(v, TweenInfo.new(0.3), {Position = newPos}):Play()
         end
     end
 
-    -- Close button click
-    closeBtn.MouseButton1Click:Connect(function()
-        closeNotification()
-    end)
+    closeBtn.MouseButton1Click:Connect(closeNotification)
 
-    -- Auto close after duration
     delay(duration, closeNotification)
 
-    -- Add notif to active list
     table.insert(activeNotifs, notifFrame)
 
-    -- Reposition notifications stacked upward
-    for i, n in ipairs(activeNotifs) do
-        local targetPos = UDim2.new(1, -20, 1, -20 - (i-1)*90)
-        TweenService:Create(n, TweenInfo.new(0.3), {Position = targetPos}):Play()
+    -- Arrange notifications stacked upwards
+    for i, v in ipairs(activeNotifs) do
+        local newPos = UDim2.new(1, -20, 1, -20 - (i-1)*90)
+        TweenService:Create(v, TweenInfo.new(0.3), {Position = newPos}):Play()
     end
 end
 
--- Rate limit notification helper
-local function rateLimitNotify()
+local function rateLimitNotification()
     createNotification({
         title = "Varis Notifications",
         subtitle = "Your notifications are being ratelimited, do not spam notifications!",
         col = "#e74c3c",
         duration = 5,
-        font = Enum.Font.GothamBold,
+        font = Enum.Font.GothamBold
     })
 end
 
--- Main exposed API
 local v = {}
 
 function v.notify(params)
-    -- Rate limit max 4 notifications on screen
     if #activeNotifs >= MAX_NOTIFS then
-        rateLimitNotify()
+        rateLimitNotification()
         return
     end
 
-    -- Normalize font enum
     if type(params.font) == "string" then
-        local ok, f = pcall(function()
+        local success, fontEnum = pcall(function()
             return Enum.Font[params.font]
         end)
-        if ok and f then
-            params.font = f
+        if success and fontEnum then
+            params.font = fontEnum
         else
             params.font = Enum.Font.Gotham
         end
